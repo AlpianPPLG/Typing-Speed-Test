@@ -1,7 +1,23 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gray-100">
-    <div class="w-full max-w-3xl p-8 bg-white rounded-lg shadow-lg">
-      <h1 class="text-4xl font-bold text-center mb-8">Typing Speed Tester</h1>
+  <div
+    :class="[
+      'min-h-screen flex items-center justify-center',
+      darkMode ? 'bg-gray-800' : 'bg-gray-100'
+    ]"
+  >
+    <div
+      :class="['w-full max-w-3xl p-8 rounded-lg shadow-lg', darkMode ? 'bg-gray-700' : 'bg-white']"
+    >
+      <h1 class="text-4xl font-bold text-center mb-8" :class="{ 'text-white': darkMode }">
+        Typing Speed Tester
+      </h1>
+      <button
+        @click="toggleDarkMode"
+        class="absolute top-4 right-4 bg-gray-200 rounded-full p-2 hover:bg-gray-300"
+      >
+        {{ darkMode ? 'Light Mode' : 'Dark Mode' }}
+      </button>
+
       <div v-if="!started">
         <div class="mb-4">
           <label for="language" class="block mb-2">Select Language:</label>
@@ -32,13 +48,31 @@
         >
           Start Test
         </button>
+        <button
+          @click="showTutorial"
+          class="mt-4 w-full bg-green-600 text-white py-3 px-6 rounded-lg hover:bg-green-700 text-xl"
+        >
+          Show Tutorial
+        </button>
+        <button
+          @click="showStatistics"
+          class="mt-4 w-full bg-gray-600 text-white py-3 px-6 rounded-lg hover:bg-gray-700 text-xl"
+        >
+          Show Detailed Statistics
+        </button>
+        <p v-if="!started && showStats" class="mt-4 text-center text-red-500">
+          Your statistics are empty because you haven't tried the test yet.
+        </p>
       </div>
+
       <div v-else>
         <div class="flex justify-between items-center mb-4">
-          <p class="text-lg font-semibold">Time: {{ time }}s</p>
-          <p class="text-lg font-semibold">Errors: {{ errors }}</p>
+          <p class="text-lg font-semibold" :class="{ 'text-white': darkMode }">Time: {{ time }}s</p>
+          <p class="text-lg font-semibold" :class="{ 'text-white': darkMode }">
+            Errors: {{ errors }}
+          </p>
         </div>
-        <div class="mb-6 p-4 bg-gray-100 rounded-lg">
+        <div class="mb-6 p-4 bg-gray-100 rounded-lg" :class="{ 'bg-gray-600': darkMode }">
           <p class="text-xl leading-relaxed" v-html="highlightedText"></p>
         </div>
         <textarea
@@ -47,6 +81,7 @@
           :placeholder="!paused ? 'Start typing here...' : ''"
           class="w-full h-64 p-4 border rounded-lg focus:outline-none focus:border-blue-500 text-lg"
           :disabled="!started || time === 0"
+          :class="{ 'bg-gray-800 text-white': darkMode }"
         ></textarea>
         <div class="mt-4 flex justify-between">
           <button
@@ -55,19 +90,43 @@
           >
             {{ paused ? 'Resume' : 'Pause' }}
           </button>
-          <button
-            @click="resetTest"
-            class="bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600"
-          >
-            Reset
-          </button>
+          <div class="flex space-x-4">
+            <button
+              @click="resetTest"
+              class="bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600"
+            >
+              Reset
+            </button>
+            <button
+              @click="saveStatistics"
+              class="bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700"
+            >
+              Done
+            </button>
+          </div>
         </div>
         <div v-if="time === 0" class="mt-6 text-center">
-          <p class="text-2xl font-bold mb-4">Your final typing speed is {{ typingSpeed }} WPM</p>
-          <div class="mb-6 space-y-2">
-            <p class="text-xl">Total Words: {{ totalWords }}</p>
-            <p class="text-xl">Total Errors: {{ errors }}</p>
-            <p class="text-xl">Accuracy: {{ accuracy }}%</p>
+          <p class="text-2xl font-bold mb-4" :class="{ 'text-white': darkMode }">Your Result:</p>
+          <p class="text-2xl font-bold mb-4" :class="{ 'text-white': darkMode }">
+            Your final typing speed is {{ typingSpeed }} WPM
+          </p>
+          <button
+            @click="showStatistics"
+            class="mt-4 w-full bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 text-xl"
+          >
+            Show Detailed Statistics
+          </button>
+          <div v-if="showStats" class="mt-4">
+            <h3 class="text-xl font-semibold" :class="{ 'text-white': darkMode }">
+              Detailed Statistics:
+            </h3>
+            <ul class="list-disc list-inside text-lg" :class="{ 'text-white': darkMode }">
+              <li>Words Typed: {{ totalWords }}</li>
+              <li>Errors Made: {{ errors }}</li>
+              <li>Accuracy: {{ accuracy }}%</li>
+              <li>Time Taken: {{ selectedDuration - time }} seconds</li>
+              <li>Average Speed: {{ typingSpeed }} WPM</li>
+            </ul>
           </div>
           <button
             @click="resetTest"
@@ -77,7 +136,9 @@
           </button>
         </div>
         <div v-else class="mt-6 text-center">
-          <p class="text-2xl font-bold">Current Speed: {{ currentSpeed }} WPM</p>
+          <p class="text-2xl font-bold" :class="{ 'text-white': darkMode }">
+            Current Speed: {{ currentSpeed }} WPM
+          </p>
         </div>
       </div>
     </div>
@@ -88,16 +149,17 @@
 export default {
   data() {
     return {
+      darkMode: false,
       sampleTexts: {
         english: [
-          'The quick brown fox jumps over the lazy dog. This sentence is often used to test typing speed. It contains all the letters of the alphabet. Typing it quickly and accurately is a good way to measure your typing skills. Keep practicing to improve your speed and accuracy.',
-          'Pack my box with five dozen liquor jugs. This sentence is also a pangram, containing every letter of the alphabet. It is shorter than the previous sentence but still effective for testing typing speed and accuracy.',
-          'How quickly daft jumping zebras vex. This is another example of a pangram, though it is quite short. It can be useful for quick typing tests and practicing speed with a variety of letters.'
+          'The quick brown fox jumps over the lazy dog.',
+          'Pack my box with five dozen liquor jugs.',
+          'How quickly daft jumping zebras vex.'
         ],
         indonesian: [
-          'Pagi hari yang cerah di sebuah desa kecil. Penduduk desa tersebut hidup dengan damai dan sejahtera. Mereka bekerja sama untuk menciptakan lingkungan yang nyaman dan harmonis. Setiap hari mereka saling membantu dalam berbagai kegiatan.',
-          'Bulan purnama bersinar terang di langit malam. Cahaya bulan menyinari setiap sudut desa. Anak-anak bermain di halaman rumah mereka, sementara orang tua duduk bercengkerama sambil menikmati teh hangat.',
-          'Di tengah hutan yang lebat, terdengar suara burung berkicau. Hutan tersebut menjadi rumah bagi berbagai jenis hewan dan tumbuhan. Keindahan alam yang memukau membuat siapa saja yang datang merasa tenang dan damai.'
+          'Pagi hari yang cerah di sebuah desa kecil.',
+          'Bulan purnama bersinar terang di langit malam.',
+          'Di tengah hutan yang lebat, terdengar suara burung berkicau.'
         ]
       },
       selectedLanguage: 'english',
@@ -113,7 +175,8 @@ export default {
       currentSpeed: 0,
       totalWords: 0,
       accuracy: 0,
-      durations: [30, 60, 120]
+      durations: [30, 60, 120],
+      showStats: false // State to track if statistics should be shown
     }
   },
   computed: {
@@ -149,6 +212,7 @@ export default {
       this.typingSpeed = 0
       this.currentSpeed = 0
       this.paused = false
+      this.showStats = false // Reset statistics display
       this.timer = setInterval(() => {
         if (!this.paused && this.time > 0) {
           this.time--
@@ -190,7 +254,6 @@ export default {
     },
     pauseResumeTest() {
       this.paused = !this.paused
-      // Clear userInput and errors when pausing to prevent placeholder access
       if (this.paused) {
         this.userInput = ''
         this.errors = 0
@@ -207,6 +270,41 @@ export default {
       this.totalWords = 0
       this.accuracy = 0
       this.time = this.selectedDuration
+      this.showStats = false // Reset statistics display
+    },
+    toggleDarkMode() {
+      this.darkMode = !this.darkMode
+    },
+    showTutorial() {
+      alert(
+        'This is a typing speed tester. Select a language, duration, and sample text to start typing. Your speed, accuracy, and errors will be displayed at the end of the test.'
+      )
+    },
+    showStatistics() {
+      this.showStats = true // Show detailed statistics
+    },
+    saveStatistics() {
+      const stats = {
+        language: this.selectedLanguage,
+        duration: this.selectedDuration,
+        totalWords: this.totalWords,
+        errors: this.errors,
+        accuracy: this.accuracy,
+        typingSpeed: this.typingSpeed
+      }
+      localStorage.setItem('typingStats', JSON.stringify(stats))
+      alert('Statistics saved successfully!')
+    }
+  },
+  mounted() {
+    // Load existing statistics from Local Storage on mount
+    const savedStats = localStorage.getItem('typingStats')
+    if (savedStats) {
+      const stats = JSON.parse(savedStats)
+      this.totalWords = stats.totalWords || 0
+      this.errors = stats.errors || 0
+      this.accuracy = stats.accuracy || 0
+      this.typingSpeed = stats.typingSpeed || 0
     }
   }
 }
